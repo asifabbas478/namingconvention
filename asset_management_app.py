@@ -228,7 +228,7 @@ def process_system_asset_mapping(location_file, space_file):
     return space_data
 
 def main():
-    st.set_page_config(page_title="Asset Management System", layout="wide")
+    st.set_page_config(page_title="Facilitrol-X Onboarding Assistant", layout="wide")
     st.title("Asset Management System")
     
     # Sidebar for navigation
