@@ -229,7 +229,7 @@ def process_system_asset_mapping(location_file, space_file):
 
 def main():
     st.set_page_config(page_title="Facilitrol-X Onboarding Assistant", layout="wide")
-    st.title("Asset Management System")
+    st.title("Facilitrol-X Onboarding Assistant")
     
     # Sidebar for navigation
     page = st.sidebar.selectbox(
