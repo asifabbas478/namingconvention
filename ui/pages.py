@@ -149,28 +149,27 @@ def render_equipment_page(namespace):
             result = process_equipment_data(equipment_file, template_path, namespace)
             
             if isinstance(result, tuple):
-                result_df, error_file = result
+                result_df, warning_file = result
                 
-                if error_file:
-                    st.error("Found validation errors in the equipment data. Please check the error log below.")
+                if warning_file:
+                    st.warning("Found non-standard equipment types/classes. You can proceed, but please review the warning log.")
                     st.download_button(
-                        label="Download Error Log",
-                        data=error_file.getvalue(),
-                        file_name="equipment_validation_errors.txt",
+                        label="Download Warning Log",
+                        data=warning_file.getvalue(),
+                        file_name="equipment_validation_warnings.txt",
                         mime="text/plain"
                     )
                 
-                if result_df is not None:
-                    show_preview_table(result_df, "Processed Equipment Data")
-                    
-                    output = io.BytesIO()
-                    result_df.to_csv(output, index=False)
-                    st.download_button(
-                        label="Download Processed File",
-                        data=output.getvalue(),
-                        file_name="processed_equipment.csv",
-                        mime="text/csv"
-                    )
+                show_preview_table(result_df, "Processed Equipment Data")
+                
+                output = io.BytesIO()
+                result_df.to_csv(output, index=False)
+                st.download_button(
+                    label="Download Processed File",
+                    data=output.getvalue(),
+                    file_name="processed_equipment.csv",
+                    mime="text/csv"
+                )
 
 def render_system_asset_page():
     st.header("System Asset ID Mapping")
