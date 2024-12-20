@@ -13,27 +13,52 @@ from utils.validation_constants import EQUIPMENT_TYPES, EQUIPMENT_CLASSES
 
 def validate_equipment_data(df, source_data):
     """Validate equipment types and classes in the dataframe"""
-    errors = []
+    warnings = []
     
     # Convert sets to case-insensitive for comparison
     valid_types = {t.lower().strip() for t in EQUIPMENT_TYPES}
     valid_classes = {c.lower().strip() for c in EQUIPMENT_CLASSES}
+    
+    # Track unique non-standard values for summary
+    non_standard_classes = set()
+    non_standard_types = set()
     
     # Check equipment class (Asset System)
     for idx, row in source_data.iterrows():
         asset_system = row['Asset System']
         if pd.notna(asset_system) and asset_system != 'Mandatory':
             if asset_system.lower().strip() not in valid_classes:
-                errors.append(f"Row {idx + 2}: Invalid equipment class '{asset_system}' in Asset System column")
+                warnings.append(f"Row {idx + 2}: Non-standard equipment class '{asset_system}' in Asset System column")
+                non_standard_classes.add(asset_system)
     
     # Check equipment type (Asset / Equipment)
     for idx, row in source_data.iterrows():
         asset_equipment = row['Asset / Equipment']
         if pd.notna(asset_equipment) and asset_equipment != 'Mandatory':
             if asset_equipment.lower().strip() not in valid_types:
-                errors.append(f"Row {idx + 2}: Invalid equipment type '{asset_equipment}' in Asset/Equipment column")
+                warnings.append(f"Row {idx + 2}: Non-standard equipment type '{asset_equipment}' in Asset/Equipment column")
+                non_standard_types.add(asset_equipment)
     
-    return errors
+    if warnings:
+        # Add summary of unique non-standard values
+        summary = []
+        if non_standard_classes:
+            summary.extend([
+                "\nNon-standard Equipment Classes found:",
+                "================================",
+                *[f"- {cls}" for cls in sorted(non_standard_classes)]
+            ])
+        if non_standard_types:
+            summary.extend([
+                "\nNon-standard Equipment Types found:",
+                "================================",
+                *[f"- {typ}" for typ in sorted(non_standard_types)]
+            ])
+        warnings.extend(summary)
+        
+        warnings.append("\nNote: You can proceed with the upload, but make sure to create these equipment classes/types in your system.")
+    
+    return warnings
 
 @handle_error
 def process_equipment_data(asset_location_file, equipment_template, namespace):
@@ -56,25 +81,8 @@ def process_equipment_data(asset_location_file, equipment_template, namespace):
         (unique_data['Asset / Equipment'] != 'Mandatory')
     ]
     
-    # Validate equipment data before processing
-    validation_errors = validate_equipment_data(template_data, valid_data)
-    
-    if validation_errors:
-        # Create error log file content
-        error_log = "\n".join([
-            "Equipment Validation Errors:",
-            "========================",
-            *validation_errors,
-            "\nNote: Row numbers include header row. Actual Excel row numbers may be different."
-        ])
-        
-        # Create StringIO object with error log
-        error_file = StringIO()
-        error_file.write(error_log)
-        error_file.seek(0)
-        
-        logger.warning(f"Found {len(validation_errors)} validation errors in equipment data")
-        return None, error_file
+    # Check for non-standard equipment data
+    validation_warnings = validate_equipment_data(template_data, valid_data)
     
     # Create new equipment data
     new_equipment_data = pd.DataFrame({
@@ -95,5 +103,20 @@ def process_equipment_data(asset_location_file, equipment_template, namespace):
     template_data_cleaned = template_data.iloc[1:]
     updated_equipment_data = pd.concat([template_data_cleaned, new_equipment_data], ignore_index=True)
     
+    # If there are warnings, create a warning log
+    warning_file = None
+    if validation_warnings:
+        warning_log = "\n".join([
+            "Equipment Validation Warnings:",
+            "==========================",
+            *validation_warnings
+        ])
+        
+        warning_file = StringIO()
+        warning_file.write(warning_log)
+        warning_file.seek(0)
+        
+        logger.warning(f"Found {len(validation_warnings)} non-standard equipment types/classes")
+    
     logger.info(f"Processed {len(new_equipment_data)} equipment records successfully")
-    return updated_equipment_data, None
+    return updated_equipment_data, warning_file
